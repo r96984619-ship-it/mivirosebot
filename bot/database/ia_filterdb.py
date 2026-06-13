@@ -299,16 +299,18 @@ else:
     async def save_file(media):
         """Save file in database"""
         file_id, file_ref = unpack_new_file_id(media.file_id)
-        file_name = re.sub(r"(_|\-|\.|\+)", " ", str(media.file_name))
+        file_name = re.sub(r"(_|\-|\.|\+)", " ", str(media.file_name or ''))
         try:
+            cap = getattr(media, 'caption', None)
+            caption_val = cap.html if (cap and hasattr(cap, 'html')) else (str(cap) if cap else None)
             file = Media(
                 file_id=file_id,
                 file_ref=file_ref,
                 file_name=file_name,
-                file_size=media.file_size,
+                file_size=media.file_size or 0,
                 file_type=media.file_type,
                 mime_type=media.mime_type,
-                caption=media.caption.html if media.caption else None,
+                caption=caption_val,
             )
         except ValidationError:
             logger.exception('Error occurred while saving file in database')

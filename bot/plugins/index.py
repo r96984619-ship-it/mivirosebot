@@ -215,10 +215,13 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
             await msg.edit(f'Error: {e}')
         else:
             await msg.edit(
-                f'Successfully saved <code>{total_files}</code> to dataBase!\n'
+                f'✅ <b>Indexing Complete!</b>\n\n'
+                f'Total messages fetched: <code>{current}</code>\n'
+                f'Total messages saved: <code>{total_files}</code>\n'
                 f'Duplicate Files Skipped: <code>{duplicate}</code>\n'
                 f'Deleted Messages Skipped: <code>{deleted}</code>\n'
                 f'Non-Media messages skipped: <code>{no_media + unsupported}</code>'
-                f'(Unsupported Media - `{unsupported}` )\n'
-                f'Errors Occurred: <code>{errors}</code>'
+                f'(Unsupported Media - <code>{unsupported}</code>)\n'
+                f'Errors Occurred: <code>{errors}</code>',
+                reply_markup=None
             )
