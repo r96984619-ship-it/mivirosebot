@@ -596,6 +596,23 @@ async def trending_cmd(client, message):
     await message.reply(text, parse_mode=enums.ParseMode.HTML)
 
 
+
+
+# ── /myid — diagnostic: show caller's Telegram ID ─────────────────────────────
+@Client.on_message(filters.command('myid') & filters.incoming)
+async def myid_cmd(client, message):
+    uid = message.from_user.id if message.from_user else 'unknown'
+    import info as _info
+    in_admins = uid in _info.ADMINS
+    await message.reply(
+        f'🆔 <b>Your Telegram ID:</b> <code>{uid}</code>
+'
+        f'👮 Admin: <b>{"✅ YES" if in_admins else "❌ NO"}</b>
+'
+        f'📋 ADMINS list: <code>{_info.ADMINS}</code>',
+        parse_mode='html'
+    )
+
 # ── Premium info callback ──────────────────────────────────────────────────────
 @Client.on_callback_query(filters.regex('^premium_info$'))
 async def premium_info_callback(client, query):
