@@ -122,6 +122,15 @@ if USE_MONGO:
         async def get_db_size(self):
             return (await self.db.command("dbstats"))['dataSize']
 
+        async def track_search_db(self, query: str):
+            """Persist search count to search_stats collection (upsert)."""
+            from datetime import datetime
+            await self.db.search_stats.update_one(
+                {'_id': query},
+                {'$inc': {'count': 1}, '$set': {'last_searched': datetime.utcnow()}},
+                upsert=True,
+            )
+
     db = Database(DATABASE_URI, DATABASE_NAME)
 
 else:
@@ -230,5 +239,9 @@ else:
 
         async def get_db_size(self):
             return 0
+
+        async def track_search_db(self, query: str):
+            """Stub — search_stats not persisted in in-memory mode."""
+            pass
 
     db = Database()

@@ -264,9 +264,17 @@ def get_refer_leaderboard(limit: int = 10) -> list:
 
 
 def track_search(query: str):
-    """Increment search counter for a query."""
+    """Increment search counter for a query (in-memory + MongoDB)."""
     key = query.strip().lower().title()
     temp.MOST_SEARCHED[key] = temp.MOST_SEARCHED.get(key, 0) + 1
+    try:
+        from database.users_chats_db import db as _db
+        import asyncio as _aio
+        _aio.get_running_loop().create_task(_db.track_search_db(key))
+    except RuntimeError:
+        pass  # No running event loop — skip persist
+    except Exception:
+        pass
 
 
 def get_most_searched(top_n: int = 10) -> list:
