@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ── Health-check server (starts once, survives reconnects) ────────────────────
 
 async def _health_server():
-    """Tiny HTTP server on $PORT for Railway / cloud health checks."""
+    """Tiny HTTP server on $PORT for Render / cloud health checks."""
     from aiohttp import web
     port = int(os.environ.get("PORT", 8080))
 
@@ -121,10 +121,14 @@ _STOP_SIGNALS  = (KeyboardInterrupt, SystemExit)
 async def main():
     app = Bot()
 
-    # Health server + auto-save loop start once and stay up across all reconnects
-    loop = asyncio.get_event_loop()
+    # Health server + auto-save loop start once and stay up across all reconnects.
+    # Use get_running_loop() (Python 3.10+) and sleep(1) to ensure the health
+    # server fully binds to PORT before Pyrogram starts connecting — this
+    # prevents Docker/Render health checks failing during slow Telegram handshakes.
+    loop = asyncio.get_running_loop()
     loop.create_task(_health_server())
     loop.create_task(auto_save_loop())
+    await asyncio.sleep(1)  # yield so health server binds to port first
 
     delay = _INITIAL_DELAY
     attempt = 0
