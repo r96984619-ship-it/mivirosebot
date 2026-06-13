@@ -336,7 +336,7 @@ else:
         try:
             regex = re.compile(raw_pattern, flags=re.IGNORECASE)
         except Exception:
-            return []
+            return [], '', 0  # return consistent 3-tuple so callers can unpack safely
 
         if USE_CAPTION_FILTER:
             filter_q = {'$or': [{'file_name': regex}, {'caption': regex}]}

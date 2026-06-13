@@ -152,9 +152,10 @@ def _schedule_save():
     """Fire-and-forget: schedule a persistence save from sync code."""
     try:
         import asyncio, persistence as _p
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(_p.save_state())
+        loop = asyncio.get_running_loop()
+        loop.create_task(_p.save_state())
+    except RuntimeError:
+        pass  # No running event loop — safe to skip
     except Exception:
         pass
 
@@ -231,9 +232,10 @@ def process_refer(new_user_id: int, code: str):
     # Persist state after every referral event
     try:
         import asyncio, persistence as _p
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(_p.save_state())
+        loop = asyncio.get_running_loop()
+        loop.create_task(_p.save_state())
+    except RuntimeError:
+        pass  # No running event loop — safe to skip
     except Exception:
         pass
     return referrer_id, milestone_hit
