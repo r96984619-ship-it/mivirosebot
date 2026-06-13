@@ -119,12 +119,7 @@ _STOP_SIGNALS  = (KeyboardInterrupt, SystemExit)
 
 
 async def main():
-    app = Bot()
-
     # Health server + auto-save loop start once and stay up across all reconnects.
-    # Use get_running_loop() (Python 3.10+) and sleep(1) to ensure the health
-    # server fully binds to PORT before Pyrogram starts connecting — this
-    # prevents Docker/Render health checks failing during slow Telegram handshakes.
     loop = asyncio.get_running_loop()
     loop.create_task(_health_server())
     loop.create_task(auto_save_loop())
@@ -134,6 +129,9 @@ async def main():
     attempt = 0
 
     while True:
+        # Fresh Bot() instance on every reconnect avoids
+        # "Client is already connected" errors from stale internal state.
+        app = Bot()
         try:
             attempt += 1
             if attempt > 1:
@@ -145,10 +143,18 @@ async def main():
 
         except (*_STOP_SIGNALS,):
             logger.info("Shutdown signal received — stopping bot.")
+            try:
+                await app.stop()
+            except Exception:
+                pass
             break
 
         except asyncio.CancelledError:
             logger.info("Event loop cancelled — stopping bot.")
+            try:
+                await app.stop()
+            except Exception:
+                pass
             break
 
         except Exception as exc:
