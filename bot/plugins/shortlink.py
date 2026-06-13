@@ -10,8 +10,9 @@ logger = logging.getLogger(__name__)
 
 async def _admin_check(message) -> bool:
     """Return True if sender is admin; reply with denial and return False if not."""
+    import info as _info
     uid = message.from_user.id if message.from_user else None
-    if uid not in ADMINS:
+    if uid not in _info.ADMINS:
         logger.warning(f"Non-admin {uid} tried command: {message.text[:40]!r}")
         await message.reply(
             "⛔️ **Admin only command.**\n\n"
