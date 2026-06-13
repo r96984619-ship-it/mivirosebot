@@ -473,6 +473,7 @@ async def start(client, message):
     'fsu', 'del_fsub', 'show_fsub', 'ginfo', 'shortlink_status', 'shortlink_stats', 'set_template',
     'premium', 'unpremium', 'set_sub_link', 'set_movie_group', 'set_daily_verify',
     'help', 'list_premium', 'trending', 'refer', 'refer_stats', 'set_refer_threshold',
+    'myid', 'set_admins',
 ]))
 async def pm_text_redirect(client, message):
     import info as _info
