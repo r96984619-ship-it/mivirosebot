@@ -1,3 +1,4 @@
+import gc
 import logging
 import logging.config
 import asyncio
@@ -115,7 +116,6 @@ class Bot(Client):
 
 _INITIAL_DELAY = 5     # seconds before first retry
 _MAX_DELAY     = 120   # cap at 2 minutes
-_STOP_SIGNALS  = (KeyboardInterrupt, SystemExit)
 
 
 async def main():
@@ -129,32 +129,43 @@ async def main():
     attempt = 0
 
     while True:
-        # Fresh Bot() instance on every reconnect avoids
-        # "Client is already connected" errors from stale internal state.
         app = Bot()
+        started = False  # track whether start() succeeded so we know if stop() is safe
+
         try:
             attempt += 1
             if attempt > 1:
                 logger.info(f"Reconnect attempt #{attempt} ...")
             await app.start()
-            delay = _INITIAL_DELAY      # reset backoff on successful connect
+            started = True          # from here on, stop() is safe to call
+            delay = _INITIAL_DELAY  # reset backoff on successful connect
             attempt = 0
-            await idle()                # blocks until Ctrl-C or SIGTERM
+            await idle()            # blocks until SIGTERM / SIGINT
 
-        except (*_STOP_SIGNALS,):
+            # idle() returned cleanly (SIGTERM) — graceful shutdown
             logger.info("Shutdown signal received — stopping bot.")
             try:
                 await app.stop()
             except Exception:
                 pass
+            break  # exit the reconnect loop
+
+        except (KeyboardInterrupt, SystemExit):
+            logger.info("Keyboard interrupt — stopping bot.")
+            if started:
+                try:
+                    await app.stop()
+                except Exception:
+                    pass
             break
 
         except asyncio.CancelledError:
             logger.info("Event loop cancelled — stopping bot.")
-            try:
-                await app.stop()
-            except Exception:
-                pass
+            if started:
+                try:
+                    await app.stop()
+                except Exception:
+                    pass
             break
 
         except Exception as exc:
@@ -162,14 +173,20 @@ async def main():
                 f"Bot disconnected ({exc.__class__.__name__}: {exc}). "
                 f"Reconnecting in {delay}s ..."
             )
+            # Only stop() if start() had succeeded; if start() itself threw,
+            # calling stop() on the half-initialised client can leave the
+            # session SQLite file locked for the next attempt.
+            if started:
+                try:
+                    await app.stop()
+                except Exception:
+                    pass
 
-        finally:
-            try:
-                await app.stop()
-            except Exception:
-                pass
+        # Discard the old instance and force GC so the previous Pyrogram
+        # session file / SQLite connection is released before we open it again.
+        del app
+        gc.collect()
 
-        # Exponential backoff before next attempt
         await asyncio.sleep(delay)
         delay = min(delay * 2, _MAX_DELAY)
 
