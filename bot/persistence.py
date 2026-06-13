@@ -121,7 +121,7 @@ async def save_state():
         },
     }
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _write_json, data)
         logger.debug("persistence: state saved.")
     except Exception as e:
