@@ -9,6 +9,7 @@ What survives restarts:
   - REFERRAL_BY        (new_user_id → referrer_id, prevents double-count)
   - REFERRAL_REWARDED  (set of user_ids notified per milestone)
   - VERIFY_STATS       (daily/weekly/total verify counts)
+  - ADMINS             (dynamically added/removed admin user IDs)
 """
 
 import json
@@ -81,6 +82,14 @@ def load_state():
             'total':  int(saved_stats.get('total', 0)),
         }
 
+        # ADMINS — restore dynamically added admins (merge with env-var defaults)
+        saved_admins = [int(x) for x in data.get('admins', []) if str(x).lstrip('-').isdigit()]
+        if saved_admins:
+            import info as _info
+            for uid in saved_admins:
+                if uid not in _info.ADMINS:
+                    _info.ADMINS.append(uid)
+
         counts = {
             'premium': len(temp.PREMIUM_USERS),
             'referrers': len(temp.REFERRAL_COUNTS),
@@ -106,6 +115,7 @@ async def save_state():
     Write current temp state to disk (async, non-blocking via run_in_executor).
     """
     from utils import temp
+    import info as _info
 
     _ensure_dir()
     data = {
@@ -119,6 +129,7 @@ async def save_state():
             'weekly': dict(temp.VERIFY_STATS.get('weekly', {})),
             'total':  temp.VERIFY_STATS.get('total', 0),
         },
+        'admins': [x for x in _info.ADMINS if isinstance(x, int)],
     }
     try:
         loop = asyncio.get_running_loop()
@@ -139,6 +150,7 @@ def _write_json(data: dict):
 def save_state_sync():
     """Synchronous save — use only in shutdown handlers where event loop is gone."""
     from utils import temp
+    import info as _info
 
     _ensure_dir()
     data = {
@@ -152,6 +164,7 @@ def save_state_sync():
             'weekly': dict(temp.VERIFY_STATS.get('weekly', {})),
             'total':  temp.VERIFY_STATS.get('total', 0),
         },
+        'admins': [x for x in _info.ADMINS if isinstance(x, int)],
     }
     try:
         _write_json(data)
