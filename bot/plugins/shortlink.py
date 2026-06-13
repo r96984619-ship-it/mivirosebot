@@ -1,4 +1,5 @@
 import logging
+import asyncio
 import time
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -542,3 +543,83 @@ async def manage_admins(bot, message):
             f'🗑 **Admin removed:** `{target_id}`',
             parse_mode='markdown'
         )
+
+
+# ── /broadcast — send a message to every user in the DB ──────────────────────
+@Client.on_message(filters.command('broadcast') & filters.private)
+async def broadcast_cmd(bot, message):
+    if not await _admin_check(message): return
+
+    from database.users_chats_db import db
+    from pyrogram.errors import (FloodWait, UserIsBlocked,
+                                 InputUserDeactivated, PeerIdInvalid)
+
+    broadcast_msg = message.reply_to_message
+    parts         = message.text.split(None, 1)
+    inline_text   = parts[1].strip() if len(parts) > 1 else None
+
+    if not broadcast_msg and not inline_text:
+        return await message.reply(
+            "📢 **Broadcast Usage:**\n\n"
+            "• Reply to any message with `/broadcast`\n"
+            "• Or: `/broadcast Your announcement text`\n\n"
+            "_Supports text, photos, videos, documents, stickers._",
+            parse_mode="markdown"
+        )
+
+    status = await message.reply("📢 Fetching users...")
+
+    users   = await db.get_all_users()
+    total   = sent = failed = blocked = 0
+
+    async for user in users:
+        uid    = user["id"]
+        total += 1
+
+        try:
+            if broadcast_msg:
+                await broadcast_msg.copy(uid)
+            else:
+                await bot.send_message(uid, inline_text)
+            sent += 1
+
+        except FloodWait as e:
+            # Respect Telegram rate-limit: sleep exactly what is required, retry once
+            await asyncio.sleep(e.value + 2)
+            try:
+                if broadcast_msg:
+                    await broadcast_msg.copy(uid)
+                else:
+                    await bot.send_message(uid, inline_text)
+                sent += 1
+            except Exception:
+                failed += 1
+
+        except (UserIsBlocked, InputUserDeactivated, PeerIdInvalid):
+            blocked += 1
+
+        except Exception:
+            failed += 1
+
+        # 50 ms gap — keeps throughput under Telegram's 30 msg/s per-bot limit
+        await asyncio.sleep(0.05)
+
+        # Progress update every 20 users
+        if total % 20 == 0:
+            try:
+                await status.edit(
+                    f"📢 **Broadcasting...** `{total}` processed\n"
+                    f"✅ Sent: `{sent}` | ❌ Failed: `{failed}` | 🚫 Blocked: `{blocked}`",
+                    parse_mode="markdown"
+                )
+            except Exception:
+                pass  # ignore edit-FloodWait; final report will be accurate
+
+    await status.edit(
+        f"📢 **Broadcast Complete!**\n\n"
+        f"👥 Total users: `{total}`\n"
+        f"✅ Sent: `{sent}`\n"
+        f"❌ Failed: `{failed}`\n"
+        f"🚫 Blocked / Deleted: `{blocked}`",
+        parse_mode="markdown"
+    )
