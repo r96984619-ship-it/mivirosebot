@@ -165,7 +165,7 @@ def save_state_sync():
 async def auto_save_loop():
     """
     Background coroutine — saves state every SAVE_INTERVAL seconds.
-    Start with: asyncio.get_event_loop().create_task(auto_save_loop())
+    Start with: asyncio.get_running_loop().create_task(auto_save_loop())
     """
     logger.info(f"persistence: auto-save loop started (every {SAVE_INTERVAL}s).")
     while True:
